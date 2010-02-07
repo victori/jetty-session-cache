@@ -1,0 +1,84 @@
+
+Jetty-Session-Cache
+======
+
+Jetty-Session-Cache is a Jetty session manager that off-loads session management to 
+the TCache caching system. This enables Jetty to persist sessions to various caching 
+end points; EhCache, Memcached or the Database.
+
+Features
+--------
+
+- Distributed Sessions:
+	* Memcached Session Store
+	* JDBC DB Session Store
+	* File Session Store (NFS)
+  
+Build
+-----
+
+Jetty-Session-Cache requires java 5 and ant 1.7
+
+Building from source is easy:
+
+    $ ant jar
+    
+    
+Configuration
+-----
+
+<!-- Select one of the Session Stores -->
+
+<!-- Memcached Store -->
+<!--
+  <New class="com.base.MemcachedSessionManager2">
+    <Arg><Array type="java.lang.String"><Item>localhost:11211</Item></Array></Arg>
+    <Arg>workerpool1</Arg>
+    <Set name="debug">false</Set> 
+  </New>
+-->
+
+<!-- EhCache / Memcached Store -->
+<!-- EhCache is the L1 Cache and Memcached is the L2 Cache -->
+<!-- Meaning, all cache look ups are against EhCache and then fallback to the Memcached Server -->
+<!-- This gives the best performance but requires Session Affinity -->
+<!--
+  <New class="com.base.EhMemcachedSessionManager2">
+    <Arg><Array type="java.lang.String"><Item>localhost:11211</Item></Array></Arg>
+    <Arg>workerpool1</Arg>
+    <Set name="localttl">1800</Set>
+    <Set name="debug">false</Set> 
+  </New> 
+-->
+
+<!-- Database store -->
+<!--
+  <New class="com.base.DBSessionManager">
+    <Arg>jdbc:mysql://myapp/sessionstore</Arg>
+    <Arg>myuser</Arg>
+    <Arg>mypassword</Arg>
+    <Arg>com.mysql.jdbc.Driver</Arg>
+    <Arg>mydb</Arg>
+  </New>
+-->
+
+<!-- Database store (L2) with a Memcached store (L1) for fast lookups. -->
+<!--
+  <New class="com.base.AsyncDBSessionManager">
+    <Arg>jdbc:mysql://myapp/sessionstore</Arg>
+    <Arg>myuser</Arg>
+    <Arg>mypassword</Arg>
+    <Arg>com.mysql.jdbc.Driver</Arg>
+    <Arg>mydb</Arg>
+    <Arg><Array type="java.lang.String"><Item>localhost:11311</Item></Array></Arg>
+  </New>
+-->
+
+<!-- File store, see how large your sessions really are. -->
+<!--
+  <New class="com.base.FileSessionManager">
+    <Arg>/tmp/wicket</Arg>
+  </New> 
+-->
+
+Victor Igumnov <victori@fabulously40.com>

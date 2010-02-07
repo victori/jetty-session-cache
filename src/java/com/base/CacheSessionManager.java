@@ -1,0 +1,379 @@
+/*
+ * Copyright 2009 Victor Igumnov <victori@fabulously40.com>
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License. You may obtain
+ * a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.base;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.util.Calendar;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Map;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSessionActivationListener;
+import javax.servlet.http.HttpSessionEvent;
+
+import org.mortbay.jetty.Server;
+import org.mortbay.jetty.SessionIdManager;
+import org.mortbay.jetty.servlet.AbstractSessionManager;
+import org.mortbay.log.Log;
+
+import com.base.cache.ICacheStat;
+import com.base.cache.IDistributedCache;
+
+public abstract class CacheSessionManager extends AbstractSessionManager {
+	private static final long serialVersionUID = 1L;
+	private IDistributedCache cache;
+	private String poolName;
+	private static String CREATED_KEY = "_memcache-created-key";
+	private static String UPDATED_KEY = "_memcache-updated-key";
+	private static String ACCESSED_KEY = "_memcache-accessed-key";
+	private static String EXPIRE_KEY = "_memcache-expire-key";
+	private SessionIdManager _sessionIdManager;
+	private boolean debug = false;
+
+	protected abstract IDistributedCache newClient(final String poolName);
+
+	protected String getPoolName() {
+		return poolName;
+	}
+
+	public CacheSessionManager(final String poolName) {
+		this.poolName = poolName;
+	}
+
+	public void setDebug(final boolean bool) {
+		debug = bool;
+	}
+
+	public IDistributedCache getCache() {
+		if(cache == null) {
+			cache = newClient(poolName);
+		}
+		return cache;
+	}
+
+	protected String generateKey(final String currKey) {
+		if (!currKey.startsWith(poolName)) {
+			return poolName + "." + currKey;
+		} else {
+			return currKey;
+		}
+	}
+
+	@Override
+	public void doStart() throws Exception {
+		super.doStart();
+		cache = newClient(poolName);
+
+		Server server = getSessionHandler().getServer();
+		synchronized (server) {
+			_sessionIdManager = server.getSessionIdManager();
+			Log.warn("Starting new manager...");
+			if (!(_sessionIdManager instanceof CacheSessionIdManager)) {
+				Log.warn("Configuring new cache sess manager...");
+				_sessionIdManager = new CacheSessionIdManager(cache);
+				setIdManager(_sessionIdManager);
+				server.setSessionIdManager(_sessionIdManager);
+			}
+		}
+		if (!_sessionIdManager.isStarted()) {
+			_sessionIdManager.start();
+		}
+	}
+
+	protected class Session extends AbstractSessionManager.Session {
+		private Map map;
+		private boolean _dirty = false;
+
+		public Session(final HttpServletRequest arg0) {
+			super(arg0);
+			initValues();
+			this.map.put(CREATED_KEY, getCreationTime());
+			this.map.put(UPDATED_KEY, getCreationTime());
+			this.map.put(ACCESSED_KEY, getCreationTime());
+			this.map.put(EXPIRE_KEY, System.currentTimeMillis() + (_dftMaxIdleSecs * 1000));
+		}
+
+		public Session(final Map map, final String key) {
+			super((Long) map.get(CREATED_KEY), key);
+			this.map = map;
+			initValues();
+		}
+
+		@Override
+		protected void access(final long time) {
+			super.access(time);
+			this.map.put(ACCESSED_KEY, time);
+			this.map.put(EXPIRE_KEY, time + (_dftMaxIdleSecs * 1000));
+		}
+
+		@Override
+		public String getId() throws IllegalStateException {
+			return getClusterId();
+		}
+
+		public long getExpireMs() {
+			Long expiretime = (Long) this.map.get(EXPIRE_KEY);
+			if (expiretime == null) {
+				return 0;
+			} else {
+				return expiretime;
+			}
+		}
+
+		@Override
+		protected void complete() {
+			super.complete();
+			try {
+				//long lastAccessed = (Long) this.map.get(ACCESSED_KEY);
+				//long lastUpdated = (Long) this.map.get(UPDATED_KEY);
+				//if (_dirty || (lastAccessed - lastUpdated) >= _savePeriodMs) {
+				//Log.warn("updated: " + lastUpdated);
+				//Log.warn("access: " + lastAccessed);
+				//Log.warn("Last updated " + (lastAccessed - lastUpdated));
+				//Log.warn("savePeriod " + _savePeriodMs);
+				if (_dirty) {
+					//Log.warn("saving session...");
+					persistSession(this);
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+				Log.warn("Issue saving session to memcache");
+			} finally {
+				_dirty = false;
+			}
+
+		}
+
+		@Override
+		public synchronized void setAttribute(final String arg0, final Object arg1) {
+			super.setAttribute(arg0, arg1);
+			_dirty = true;
+		}
+
+		@Override
+		public synchronized void removeAttribute(final String arg0) {
+			super.removeAttribute(arg0);
+			_dirty = true;
+		}
+
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		protected Map newAttributeMap() {
+			return map != null ? map : (map = new HashMap());
+		}
+
+		public Map getMap() {
+			return map;
+		}
+	}
+
+	public void persistSession(final AbstractSessionManager.Session arg0) {
+		synchronized (this) {
+			willPassivate(arg0);
+
+			ObjectOutputStream oos = null;
+			try {
+				Map sMap = ((Session) arg0).getMap();
+				ByteArrayOutputStream bs = new ByteArrayOutputStream();
+				oos = new ObjectOutputStream(bs);
+				oos.writeObject(sMap);
+				oos.flush();
+
+				sMap.put(UPDATED_KEY, System.currentTimeMillis());
+				Calendar cal = Calendar.getInstance();
+				cal.add(Calendar.SECOND, arg0.getMaxInactiveInterval());
+				Log.debug("Setting for key " + arg0.getId());
+
+				cache.put(generateKey(arg0.getId()), bs.toByteArray());
+				//cache.add(generateKey(arg0.getId()), bs.toByteArray(), Long.valueOf(cal.getTimeInMillis()).intValue());
+			} catch (Exception e) {
+				Log.warn("Error serializing session: " + e.getMessage());
+			} finally {
+				try {
+					if (oos != null) {
+						oos.close();
+					}
+				} catch (Exception e) {
+					Log.warn("Failed to close open session files.");
+				}
+			}
+			didActivate(arg0);
+		}
+	}
+
+	@Override
+	protected void addSession(final AbstractSessionManager.Session arg0) {
+		persistSession(arg0);
+	}
+
+	protected void willPassivate(final AbstractSessionManager.Session sess) {
+		HttpSessionEvent event = new HttpSessionEvent(sess);
+		for (Enumeration e = sess.getAttributeNames(); e.hasMoreElements();) {
+			Object value = e.nextElement();
+			if (value instanceof HttpSessionActivationListener) {
+				HttpSessionActivationListener listener = (HttpSessionActivationListener) value;
+				listener.sessionWillPassivate(event);
+			}
+		}
+	}
+
+	protected void didActivate(final AbstractSessionManager.Session sess) {
+		HttpSessionEvent event = new HttpSessionEvent(sess);
+		for (Enumeration e = sess.getAttributeNames(); e.hasMoreElements();) {
+			Object value = e.nextElement();
+			if (value instanceof HttpSessionActivationListener) {
+				HttpSessionActivationListener listener = (HttpSessionActivationListener) value;
+				listener.sessionDidActivate(event);
+			}
+		}
+	}
+
+	@Override
+	public Session getSession(final String arg0) {
+		return loadSession(arg0);
+	}
+
+	/**
+	 * ClassLoadingObjectInputStream
+	 * 
+	 * 
+	 */
+	protected class ClassLoadingObjectInputStream extends ObjectInputStream {
+		public ClassLoadingObjectInputStream(final java.io.InputStream in) throws IOException {
+			super(in);
+		}
+
+		public ClassLoadingObjectInputStream() throws IOException {
+			super();
+		}
+
+		@Override
+		public Class resolveClass(final java.io.ObjectStreamClass cl) throws IOException, ClassNotFoundException {
+			try {
+				String classname = cl.getName();
+				Class clazz = null;
+				if (classname.equals("byte")) {
+					clazz = byte.class;
+				} else if (classname.equals("short")) {
+					clazz = short.class;
+				} else if (classname.equals("int")) {
+					clazz = int.class;
+				} else if (classname.equals("long")) {
+					clazz = long.class;
+				} else if (classname.equals("float")) {
+					clazz = float.class;
+				} else if (classname.equals("double")) {
+					clazz = double.class;
+				} else if (classname.equals("boolean")) {
+					clazz = boolean.class;
+				} else if (classname.equals("char")) {
+					clazz = char.class;
+				} else {
+					ClassLoader loader = Thread.currentThread().getContextClassLoader();
+					if (loader == null)
+					{
+						loader = FileSessionManager.class.getClassLoader();
+					}
+					clazz = Class.forName(classname,false,loader);
+					//clazz = loader.loadClass(classname);
+				}
+				return clazz;
+			} catch (ClassNotFoundException e) {
+				return super.resolveClass(cl);
+			}
+		}
+	}
+	@Override
+	public Map getSessionMap() {
+		return null;
+	}
+
+	@Override
+	public int getSessions() {
+		if (cache instanceof ICacheStat) {
+			return Long.valueOf(((ICacheStat) cache).getCacheElements()).intValue();
+		} else {
+			return 0;
+		}
+	}
+
+	@Override
+	protected void invalidateSessions() {
+		// Do nothing - we don't want to remove and
+		// invalidate all the sessions because this
+		// method is called from doStop(), and just
+		// because this context is stopping does not
+		// mean that we should remove the session from
+		// any other nodes
+	}
+
+	@Override
+	protected Session newSession(final HttpServletRequest arg0) {
+		return new Session(arg0);
+	}
+
+	@Override
+	protected void removeSession(final String arg0) {
+		synchronized (this) {
+			cache.remove(generateKey(arg0));
+		}
+	}
+
+	public Session loadSession(final String arg0) {
+		Session sess = null;
+		synchronized (this) {
+			Log.debug("Getting for key " + arg0);
+			byte[] bytes = (byte[]) cache.get(generateKey(arg0));
+			if (bytes == null) {
+				return null;
+			}
+			ClassLoadingObjectInputStream ois = null;
+			//ObjectInputStream ois = null;
+			try {
+				ByteArrayInputStream bs = new ByteArrayInputStream(bytes);
+				ois = new ClassLoadingObjectInputStream(bs);
+				//ois = new ObjectInputStream(bs);
+				Object o = ois.readObject();
+				if (o != null) {
+					sess = new Session((Map) o, arg0);
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+				Log.warn("Issue loading memcache session.");
+			} finally {
+				try {
+					if (ois != null) {
+						ois.close();
+					}
+				} catch (Exception e) {
+				}
+			}
+		}
+		return sess;
+	}
+
+	public boolean isDebug() {
+		return debug;
+	}
+
+}

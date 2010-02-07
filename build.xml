@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+
+  /*
+  * Copyright 2009 Victor Igumnov <victori@fabulously40.com>
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License"); you may
+  * not use this file except in compliance with the License. You may obtain
+  * a copy of the License at
+  *
+  *     http://www.apache.org/licenses/LICENSE-2.0
+  *
+  * Unless required by applicable law or agreed to in writing, software
+  * distributed under the License is distributed on an "AS IS" BASIS,
+  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
+
+-->
+
+<project default="compile" name="jetty-session-cache" basedir=".">
+
+  <property name="src.dir" value="src/java"/>
+  <property name="build.dir" value="target/"/>
+  <property name="build.dir.classes" value="${build.dir}/classes"/>
+
+  <path id="project.classpath">
+    <pathelement location="${build.dir}"/>
+    <fileset dir="libs/">
+      <include name="**/*.jar"></include>
+    </fileset>
+  </path>
+
+  <target name="compile">
+    <mkdir dir="${build.dir.classes}"/>
+
+    <javac srcdir="${src.dir}" destdir="${build.dir.classes}" classpathref="project.classpath">
+      <include name="**/*.java"/>
+    </javac>
+    <copy todir="${build.dir.classes}">
+      <fileset dir="${src.dir}">
+        <include name="**/*.*" />
+        <exclude name="**/*.java" />
+      </fileset>
+    </copy>
+  </target>
+
+  <target name="init" description="o Creates all directories for building">
+    <mkdir dir="${build.dir.classes}" />
+  </target>
+  
+  <target name="jar" depends="compile" description="o Creates a JAR file for this package">
+    <mkdir dir="${build.dir.classes}" />
+    <manifestclasspath property="dist.manifest.classpath" jarfile="${build.dir}/jetty-session-cache.jar">
+      <classpath refid="project.classpath" />
+    </manifestclasspath>
+
+    <jar destfile="${build.dir}/jetty-session-cache.jar"
+      excludes="**/package.html" basedir="${build.dir}/classes" includes="**/*.class"
+      >
+      <fileset dir="${src.dir}">
+        <include name="**/*"/>
+      </fileset>
+    <!-- Remove this if you don't want the tcache jar bundled -->
+      <zipfileset src="libs/tcache.jar"/>
+    <!--
+      <zipfileset src="libs/jetty-6.1.12.jar"/>
+      <zipfileset src="libs/jetty-util-6.1.12.jar"/>
+      <zipfileset src="libs/servlet-api-2.5-6.0.2.jar"/> -->
+      <fileset dir="${src.dir}" includes="*.*" />
+      <manifest>
+        <attribute name="Class-Path" value="${dist.manifest.classpath}"/>  
+      </manifest>
+    </jar>
+  </target>
+
+  <target name="clean" description="o Cleans up the build artifacts">
+    <delete dir="${build.dir}" failonerror="false" />
+    <delete file="jetty-session-cache.jar" failonerror="false" />
+  </target>
+
+
+</project>
