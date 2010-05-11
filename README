@@ -34,7 +34,6 @@ Configuration
   <New class="com.base.MemcachedSessionManager2">
     <Arg><Array type="java.lang.String"><Item>localhost:11211</Item></Array></Arg>
     <Arg>workerpool1</Arg>
-    <Set name="debug">false</Set> 
   </New>
 -->
 
@@ -47,7 +46,6 @@ Configuration
     <Arg><Array type="java.lang.String"><Item>localhost:11211</Item></Array></Arg>
     <Arg>workerpool1</Arg>
     <Set name="localttl">1800</Set>
-    <Set name="debug">false</Set> 
   </New> 
 -->
 
