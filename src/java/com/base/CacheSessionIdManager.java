@@ -20,6 +20,8 @@ import com.base.cache.IDistributedCache;
 import org.mortbay.component.AbstractLifeCycle;
 import org.mortbay.jetty.HttpHeaders;
 import org.mortbay.jetty.SessionIdManager;
+import org.mortbay.log.Log;
+import org.mortbay.log.Logger;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
@@ -28,6 +30,7 @@ import java.util.Random;
 public class CacheSessionIdManager extends AbstractLifeCycle implements SessionIdManager {
 	private IDistributedCache cache;
 	private final static String __NEW_SESSION_ID = "com.base.memcacheId";
+    private final static transient Logger logger = Log.getLogger(CacheSessionIdManager.class.getName());
 	private Random _random;
 
 	public CacheSessionIdManager(final IDistributedCache client2) {
@@ -95,6 +98,7 @@ public class CacheSessionIdManager extends AbstractLifeCycle implements SessionI
 				r ^= created;
 
                 String ipAddress = null;
+                // X-Real-IP wins if defined.
                 if(request != null) {
                     if(request.getRemoteAddr() != null) {
                         ipAddress = request.getRemoteAddr();
@@ -104,6 +108,9 @@ public class CacheSessionIdManager extends AbstractLifeCycle implements SessionI
                     }
                     if(request.getHeader("X-Real-IP") != null) {
                         ipAddress = request.getHeader("X-Real-IP");
+                    }
+                    if(logger.isDebugEnabled()) {
+                        logger.debug("Hashing for "+ipAddress,null);
                     }
                 }
 				if (ipAddress != null) {
@@ -124,5 +131,4 @@ public class CacheSessionIdManager extends AbstractLifeCycle implements SessionI
 	public void removeSession(final HttpSession arg0) {
 		// handled by session manager
 	}
-
 }

@@ -63,12 +63,14 @@ public class ClusterLogger extends AbstractLifeCycle implements RequestLog {
         _extended = true;
         _append = true;
         _retainDays = 31;
+        _preferProxiedForAddress = true;
     }
 
     public ClusterLogger(String filename) {
         _extended = true;
         _append = true;
         _retainDays = 31;
+        _preferProxiedForAddress = true;
         setFilename(filename);
     }
 

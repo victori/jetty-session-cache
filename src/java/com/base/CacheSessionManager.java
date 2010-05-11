@@ -22,6 +22,7 @@ import org.mortbay.jetty.Server;
 import org.mortbay.jetty.SessionIdManager;
 import org.mortbay.jetty.servlet.AbstractSessionManager;
 import org.mortbay.log.Log;
+import org.mortbay.log.Logger;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSessionActivationListener;
@@ -41,7 +42,7 @@ public abstract class CacheSessionManager extends AbstractSessionManager {
 	private static String ACCESSED_KEY = "_memcache-accessed-key";
 	private static String EXPIRE_KEY = "_memcache-expire-key";
 	private SessionIdManager _sessionIdManager;
-	private boolean debug = false;
+    private final static transient Logger logger = Log.getLogger(CacheSessionManager.class.getName());
 
 	protected abstract IDistributedCache newClient(final String poolName);
 
@@ -51,10 +52,6 @@ public abstract class CacheSessionManager extends AbstractSessionManager {
 
 	public CacheSessionManager(final String poolName) {
 		this.poolName = poolName;
-	}
-
-	public void setDebug(final boolean bool) {
-		debug = bool;
 	}
 
 	public IDistributedCache getCache() {
@@ -80,9 +77,9 @@ public abstract class CacheSessionManager extends AbstractSessionManager {
 		Server server = getSessionHandler().getServer();
 		synchronized (server) {
 			_sessionIdManager = server.getSessionIdManager();
-			Log.warn("Starting new manager...");
+			logger.warn("Starting new manager...",null);
 			if (!(_sessionIdManager instanceof CacheSessionIdManager)) {
-				Log.warn("Configuring new cache sess manager...");
+				logger.warn("Configuring new cache session id manager...",null);
 				_sessionIdManager = new CacheSessionIdManager(cache);
 				setIdManager(_sessionIdManager);
 				server.setSessionIdManager(_sessionIdManager);
@@ -137,20 +134,12 @@ public abstract class CacheSessionManager extends AbstractSessionManager {
 		protected void complete() {
 			super.complete();
 			try {
-				//long lastAccessed = (Long) this.map.get(ACCESSED_KEY);
-				//long lastUpdated = (Long) this.map.get(UPDATED_KEY);
-				//if (_dirty || (lastAccessed - lastUpdated) >= _savePeriodMs) {
-				//Log.warn("updated: " + lastUpdated);
-				//Log.warn("access: " + lastAccessed);
-				//Log.warn("Last updated " + (lastAccessed - lastUpdated));
-				//Log.warn("savePeriod " + _savePeriodMs);
 				if (_dirty) {
-					//Log.warn("saving session...");
+                    logger.debug("saving session...",null);
 					persistSession(this);
 				}
 			} catch (Exception e) {
-				e.printStackTrace();
-				Log.warn("Issue saving session to memcache");
+                logger.debug("Issue saving session to memcache",e);
 			} finally {
 				_dirty = false;
 			}
@@ -196,19 +185,20 @@ public abstract class CacheSessionManager extends AbstractSessionManager {
 				sMap.put(UPDATED_KEY, System.currentTimeMillis());
 				Calendar cal = Calendar.getInstance();
 				cal.add(Calendar.SECOND, arg0.getMaxInactiveInterval());
-				Log.debug("Setting for key " + arg0.getId());
-
+                
+                if (logger.isDebugEnabled()) {
+                    logger.debug("Persisting " + arg0.getId() + " as " + generateKey(arg0.getId()), null);
+                }
 				cache.put(generateKey(arg0.getId()), bs.toByteArray());
-				//cache.add(generateKey(arg0.getId()), bs.toByteArray(), Long.valueOf(cal.getTimeInMillis()).intValue());
 			} catch (Exception e) {
-				Log.warn("Error serializing session: " + e.getMessage());
+                logger.warn("Error serializing session: " + e.getMessage(), e);
 			} finally {
 				try {
 					if (oos != null) {
 						oos.close();
 					}
 				} catch (Exception e) {
-					Log.warn("Failed to close open session files.");
+                    logger.warn("Failed to close open session files.", e);
 				}
 			}
 			didActivate(arg0);
@@ -289,7 +279,6 @@ public abstract class CacheSessionManager extends AbstractSessionManager {
 						loader = FileSessionManager.class.getClassLoader();
 					}
 					clazz = Class.forName(classname,false,loader);
-					//clazz = loader.loadClass(classname);
 				}
 				return clazz;
 			} catch (ClassNotFoundException e) {
@@ -336,7 +325,9 @@ public abstract class CacheSessionManager extends AbstractSessionManager {
 	public Session loadSession(final String arg0) {
 		Session sess = null;
 		synchronized (this) {
-			Log.debug("Getting for key " + arg0);
+            if(logger.isDebugEnabled()) {
+			    logger.debug("Fetching session for key " + arg0 + " as "+generateKey(arg0),null);
+            }
 			byte[] bytes = (byte[]) cache.get(generateKey(arg0));
 			if (bytes == null) {
 				return null;
@@ -352,8 +343,7 @@ public abstract class CacheSessionManager extends AbstractSessionManager {
 					sess = new Session((Map) o, arg0);
 				}
 			} catch (Exception e) {
-				e.printStackTrace();
-				Log.warn("Issue loading memcache session.");
+                logger.warn("Issue loading memcache session.", e);
 			} finally {
 				try {
 					if (ois != null) {
@@ -365,9 +355,4 @@ public abstract class CacheSessionManager extends AbstractSessionManager {
 		}
 		return sess;
 	}
-
-	public boolean isDebug() {
-		return debug;
-	}
-
 }
