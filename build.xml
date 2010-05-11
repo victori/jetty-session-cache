@@ -75,10 +75,30 @@
       </manifest>
     </jar>
   </target>
+  
+  <target name="contrib" depends="compile" description="o Creates a JAR file for this package">
+    <mkdir dir="${build.dir.classes}" />
+    <manifestclasspath property="dist.manifest.classpath" jarfile="${build.dir}/jetty-session-cache.jar">
+      <classpath refid="project.classpath" />
+    </manifestclasspath>
+
+    <jar destfile="jetty-memcache.jar"
+      excludes="**/package.html" basedir="${build.dir}/classes" includes="**/*.class"
+      >
+      <fileset dir="${src.dir}">
+        <include name="**/*"/>
+      </fileset>
+      <fileset dir="${src.dir}" includes="*.*" />
+      <manifest>
+        <attribute name="Class-Path" value="${dist.manifest.classpath}"/>  
+      </manifest>
+    </jar>
+  </target>
 
   <target name="clean" description="o Cleans up the build artifacts">
     <delete dir="${build.dir}" failonerror="false" />
     <delete file="jetty-session-cache.jar" failonerror="false" />
+    <delete file="jetty-memcache.jar" failonerror="false" />
   </target>
 
 

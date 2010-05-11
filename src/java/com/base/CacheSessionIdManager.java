@@ -16,15 +16,14 @@
 
 package com.base;
 
-import java.util.Random;
+import com.base.cache.IDistributedCache;
+import org.mortbay.component.AbstractLifeCycle;
+import org.mortbay.jetty.HttpHeaders;
+import org.mortbay.jetty.SessionIdManager;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
-
-import org.mortbay.component.AbstractLifeCycle;
-import org.mortbay.jetty.SessionIdManager;
-
-import com.base.cache.IDistributedCache;
+import java.util.Random;
 
 public class CacheSessionIdManager extends AbstractLifeCycle implements SessionIdManager {
 	private IDistributedCache cache;
@@ -94,8 +93,21 @@ public class CacheSessionIdManager extends AbstractLifeCycle implements SessionI
 			while (id == null || id.length() == 0 || idInUse(id)) {
 				long r = _random.nextLong();
 				r ^= created;
-				if (request != null && request.getRemoteAddr() != null) {
-					r ^= request.getRemoteAddr().hashCode();
+
+                String ipAddress = null;
+                if(request != null) {
+                    if(request.getRemoteAddr() != null) {
+                        ipAddress = request.getRemoteAddr();
+                    }
+                    if(request.getHeader(HttpHeaders.X_FORWARDED_FOR) != null) {
+                        ipAddress = request.getHeader(HttpHeaders.X_FORWARDED_FOR);
+                    }
+                    if(request.getHeader("X-Real-IP") != null) {
+                        ipAddress = request.getHeader("X-Real-IP");
+                    }
+                }
+				if (ipAddress != null) {
+					r ^= ipAddress.hashCode();
 				}
 				if (r < 0) {
 					r = -r;
