@@ -16,6 +16,8 @@
 
 package com.base;
 
+import com.base.cache.Ehcache;
+import com.base.cache.ICache;
 import com.base.cache.ICacheStat;
 import com.base.cache.IDistributedCache;
 import org.mortbay.jetty.Server;
@@ -27,8 +29,9 @@ import org.mortbay.log.Logger;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSessionActivationListener;
 import javax.servlet.http.HttpSessionEvent;
-import java.io.*;
-import java.util.Calendar;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectOutputStream;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
@@ -41,7 +44,10 @@ public abstract class CacheSessionManager extends AbstractSessionManager {
 	private static String UPDATED_KEY = "_memcache-updated-key";
 	private static String ACCESSED_KEY = "_memcache-accessed-key";
 	private static String EXPIRE_KEY = "_memcache-expire-key";
+    private static int LOCAL_PRIVATE_TTL = 300; 
 	private SessionIdManager _sessionIdManager;
+    // temp holder for the duration of the request.
+    private ICache localtempStore;
     private final static transient Logger logger = Log.getLogger(CacheSessionManager.class.getName());
 
 	protected abstract IDistributedCache newClient(final String poolName);
@@ -88,25 +94,34 @@ public abstract class CacheSessionManager extends AbstractSessionManager {
 		if (!_sessionIdManager.isStarted()) {
 			_sessionIdManager.start();
 		}
+        localtempStore = new Ehcache(poolName);
 	}
 
-	protected class Session extends AbstractSessionManager.Session {
+    public void doStop() throws Exception {
+        super.doStop();
+        localtempStore.clear();
+    }
+
+    protected class Session extends AbstractSessionManager.Session {
 		private Map map;
 		private boolean _dirty = false;
 
 		public Session(final HttpServletRequest arg0) {
 			super(arg0);
 			initValues();
+            newAttributeMap();
 			this.map.put(CREATED_KEY, getCreationTime());
 			this.map.put(UPDATED_KEY, getCreationTime());
 			this.map.put(ACCESSED_KEY, getCreationTime());
 			this.map.put(EXPIRE_KEY, System.currentTimeMillis() + (_dftMaxIdleSecs * 1000));
+            localtempStore.put(arg0.getSession().getId(), this.map, LOCAL_PRIVATE_TTL);
 		}
 
 		public Session(final Map map, final String key) {
 			super((Long) map.get(CREATED_KEY), key);
 			this.map = map;
 			initValues();
+            localtempStore.put(key, this.map, LOCAL_PRIVATE_TTL);
 		}
 
 		@Override
@@ -129,7 +144,7 @@ public abstract class CacheSessionManager extends AbstractSessionManager {
 				return expiretime;
 			}
 		}
-
+        
 		@Override
 		protected void complete() {
 			super.complete();
@@ -137,6 +152,10 @@ public abstract class CacheSessionManager extends AbstractSessionManager {
 				if (_dirty) {
                     logger.debug("saving session...",null);
 					persistSession(this);
+                    if(logger.isDebugEnabled()) {
+                        logger.debug("Removing local session "+this.getId(),null);
+                    }
+                    localtempStore.remove(this.getId());
 				}
 			} catch (Exception e) {
                 logger.debug("Issue saving session to memcache",e);
@@ -177,14 +196,12 @@ public abstract class CacheSessionManager extends AbstractSessionManager {
 			ObjectOutputStream oos = null;
 			try {
 				Map sMap = ((Session) arg0).getMap();
+                sMap.put(UPDATED_KEY, System.currentTimeMillis());
+
 				ByteArrayOutputStream bs = new ByteArrayOutputStream();
 				oos = new ObjectOutputStream(bs);
 				oos.writeObject(sMap);
 				oos.flush();
-
-				sMap.put(UPDATED_KEY, System.currentTimeMillis());
-				Calendar cal = Calendar.getInstance();
-				cal.add(Calendar.SECOND, arg0.getMaxInactiveInterval());
                 
                 if (logger.isDebugEnabled()) {
                     logger.debug("Persisting " + arg0.getId() + " as " + generateKey(arg0.getId()), null);
@@ -221,6 +238,7 @@ public abstract class CacheSessionManager extends AbstractSessionManager {
 		}
 	}
 
+
 	protected void didActivate(final AbstractSessionManager.Session sess) {
 		HttpSessionEvent event = new HttpSessionEvent(sess);
 		for (Enumeration e = sess.getAttributeNames(); e.hasMoreElements();) {
@@ -234,58 +252,21 @@ public abstract class CacheSessionManager extends AbstractSessionManager {
 
 	@Override
 	public Session getSession(final String arg0) {
-		return loadSession(arg0);
+        Session sess = null;
+        if(localtempStore.keyExists(arg0)) {
+            if(logger.isDebugEnabled()) {
+                logger.debug("Loading local session "+arg0,null,null);
+            }
+            sess = new Session((Map)localtempStore.get(arg0),arg0);
+        } else {
+		    sess = loadSession(arg0);
+        }
+        if(sess != null) {
+            didActivate(sess);
+        }
+        return sess;
 	}
 
-	/**
-	 * ClassLoadingObjectInputStream
-	 * 
-	 * 
-	 */
-	protected class ClassLoadingObjectInputStream extends ObjectInputStream {
-		public ClassLoadingObjectInputStream(final java.io.InputStream in) throws IOException {
-			super(in);
-		}
-
-		public ClassLoadingObjectInputStream() throws IOException {
-			super();
-		}
-
-		@Override
-		public Class resolveClass(final java.io.ObjectStreamClass cl) throws IOException, ClassNotFoundException {
-			try {
-				String classname = cl.getName();
-				Class clazz = null;
-				if (classname.equals("byte")) {
-					clazz = byte.class;
-				} else if (classname.equals("short")) {
-					clazz = short.class;
-				} else if (classname.equals("int")) {
-					clazz = int.class;
-				} else if (classname.equals("long")) {
-					clazz = long.class;
-				} else if (classname.equals("float")) {
-					clazz = float.class;
-				} else if (classname.equals("double")) {
-					clazz = double.class;
-				} else if (classname.equals("boolean")) {
-					clazz = boolean.class;
-				} else if (classname.equals("char")) {
-					clazz = char.class;
-				} else {
-					ClassLoader loader = Thread.currentThread().getContextClassLoader();
-					if (loader == null)
-					{
-						loader = FileSessionManager.class.getClassLoader();
-					}
-					clazz = Class.forName(classname,false,loader);
-				}
-				return clazz;
-			} catch (ClassNotFoundException e) {
-				return super.resolveClass(cl);
-			}
-		}
-	}
 	@Override
 	public Map getSessionMap() {
 		return null;
@@ -302,6 +283,7 @@ public abstract class CacheSessionManager extends AbstractSessionManager {
 
 	@Override
 	protected void invalidateSessions() {
+        localtempStore.clear();
 		// Do nothing - we don't want to remove and
 		// invalidate all the sessions because this
 		// method is called from doStop(), and just
@@ -319,6 +301,7 @@ public abstract class CacheSessionManager extends AbstractSessionManager {
 	protected void removeSession(final String arg0) {
 		synchronized (this) {
 			cache.remove(generateKey(arg0));
+            localtempStore.remove(arg0);
 		}
 	}
 

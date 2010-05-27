@@ -16,22 +16,19 @@
 
 package com.base;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.Map;
+import org.mortbay.jetty.servlet.AbstractSessionManager;
+import org.mortbay.log.Log;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSessionActivationListener;
 import javax.servlet.http.HttpSessionEvent;
-
-import org.mortbay.jetty.servlet.AbstractSessionManager;
-import org.mortbay.log.Log;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.ObjectOutputStream;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Map;
 
 public class FileSessionManager extends AbstractSessionManager {
 	private static final long serialVersionUID = 1L;
@@ -207,58 +204,10 @@ public class FileSessionManager extends AbstractSessionManager {
 
 			}
 		}
+        if(sess != null) {
+            didActivate(sess);
+        }
 		return sess;
-	}
-
-	/**
-	 * ClassLoadingObjectInputStream
-	 * 
-	 * 
-	 */
-	protected class ClassLoadingObjectInputStream extends ObjectInputStream {
-		public ClassLoadingObjectInputStream(final java.io.InputStream in) throws IOException {
-			super(in);
-		}
-
-		public ClassLoadingObjectInputStream() throws IOException {
-			super();
-		}
-
-		@Override
-		public Class resolveClass(final java.io.ObjectStreamClass cl) throws IOException, ClassNotFoundException {
-			try {
-				String classname = cl.getName();
-				Class clazz = null;
-				if (classname.equals("byte")) {
-					clazz = byte.class;
-				} else if (classname.equals("short")) {
-					clazz = short.class;
-				} else if (classname.equals("int")) {
-					clazz = int.class;
-				} else if (classname.equals("long")) {
-					clazz = long.class;
-				} else if (classname.equals("float")) {
-					clazz = float.class;
-				} else if (classname.equals("double")) {
-					clazz = double.class;
-				} else if (classname.equals("boolean")) {
-					clazz = boolean.class;
-				} else if (classname.equals("char")) {
-					clazz = char.class;
-				} else {
-					ClassLoader loader = Thread.currentThread().getContextClassLoader();
-					if (loader == null)
-					{
-						loader = FileSessionManager.class.getClassLoader();
-					}
-					clazz = Class.forName(classname,false,loader);
-					//clazz = loader.loadClass(classname);
-				}
-				return clazz;
-			} catch (ClassNotFoundException e) {
-				return super.resolveClass(cl);
-			}
-		}
 	}
 
 	@Override
