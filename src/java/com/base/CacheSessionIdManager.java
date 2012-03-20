@@ -95,8 +95,30 @@ public class CacheSessionIdManager extends AbstractLifeCycle implements SessionI
         // idmanager
     }
 
+    /**
+     * Generate a new session.
+     *
+     * This session id generator can, in theory, generate overlapping session
+     * ID:s since no locking is performed between SessionIdManagers that are
+     * running on different JVMs (synchronized (...) { } only synchronizes
+     * within one JVM).
+     *
+     * <p> The risk of this happening can be minimized by making sure that the
+     * session-to-be-created is added to the backend as fast as possible so that
+     * {@link #idInUse(String)} calls will return false. If the backend is of
+     * replicated nature, or L1/L2, or is crucial that writes are pushed there
+     * as fast as possible (that is, minimize replication delay).
+     *
+     * <p> Of course, only doing session generation on one server will remedy
+     * this problem.
+     */
     public String newSessionId(final HttpServletRequest request, final long created) {
         synchronized (this) {
+            // Since this synchronization is only applicable to the running
+            // JVM, multiple session id generators could potentially (in theory)
+            // concurrently be generating the same ID. See JavaDoc for this
+            // method for details.
+
             // A requested session ID can only be used if it is in use already.
             String requested_id = request.getRequestedSessionId();
 
@@ -115,15 +137,16 @@ public class CacheSessionIdManager extends AbstractLifeCycle implements SessionI
 
             // pick a new unique ID!
             String id = null;
+            String ipAddress = null;
             while (id == null || id.length() == 0 || idInUse(id)) {
                 // A bit more random.
                 for (int i = 0; i < 2; i++) {
                     long r = _random.nextLong();
                     r ^= created;
 
-                    String ipAddress = null;
                     // X-Real-IP wins if defined.
-                    if (request != null) {
+                    if (request != null && ipAddress == null) {
+                        // Making sure to only calculate ipAddress once, if needed
                         if (request.getRemoteAddr() != null) {
                             ipAddress = request.getRemoteAddr();
                         }
