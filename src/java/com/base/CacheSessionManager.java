@@ -250,28 +250,36 @@ public abstract class CacheSessionManager extends AbstractSessionManager {
 
     @Override
     public Session getSession(final String arg0) {
-        // getSession is called many times during the render phase
-        if (localStore.containsKey(arg0)) {
-            if (logger.isDebugEnabled()) {
-                logger.debug("Loading local session " + arg0, null, null);
-            }
-	    // XXX: The code below might throw a NullPointerException if
-	    // a Session is concurrently removed from localStore after we
-	    // checked if it existed above. This can happen if a client
-	    // is making two overlapping requests.
-            Session sess = localStore.get(arg0).get();
+
+        // getSession is called many times during a render phase.
+        // Therefor, we are using a localStore if possible.
+        //
+        // Since the ConcurrentHashMap localStore potentially could be modified
+        // concurrently while we are executing this method (since no
+        // synchronization occurs here), it is crucial that we never only check
+        // for existence of session id in localStore. Rather, we always want to
+        // extract its value immediately for local usage.
+        WeakReference<Session> local_element_reference = localStore.get(arg0);
+        Session sess = null;
+        if (local_element_reference != null) {
+            sess = local_element_reference.get();
             if (sess == null) {
                 localStore.remove(arg0);
-                if (logger.isDebugEnabled()) {
-                    logger.debug("local session collected " + arg0, null, null);
-                }
-                return loadRemoteSession(arg0);
-            } else {
-                return sess;
             }
+        }
+
+        if (sess != null) {
+            if (logger.isDebugEnabled()) {
+                logger.debug("Using locally stored session " + arg0);
+            }
+            return sess;
         } else {
+            if (logger.isDebugEnabled()) {
+                logger.debug("local session collected remotely " + arg0);
+            }
             return loadRemoteSession(arg0);
         }
+
     }
 
     protected Session loadRemoteSession(String arg0) {
