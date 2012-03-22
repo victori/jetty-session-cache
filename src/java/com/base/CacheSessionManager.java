@@ -255,6 +255,10 @@ public abstract class CacheSessionManager extends AbstractSessionManager {
             if (logger.isDebugEnabled()) {
                 logger.debug("Loading local session " + arg0, null, null);
             }
+	    // XXX: The code below might throw a NullPointerException if
+	    // a Session is concurrently removed from localStore after we
+	    // checked if it existed above. This can happen if a client
+	    // is making two overlapping requests.
             Session sess = localStore.get(arg0).get();
             if (sess == null) {
                 localStore.remove(arg0);
