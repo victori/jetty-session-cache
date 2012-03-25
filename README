@@ -2,9 +2,11 @@
 Jetty-Session-Cache
 ======
 
-Jetty-Session-Cache is a Jetty session manager that off-loads session management to 
-the TCache caching system. This enables Jetty to persist sessions to various caching 
+Jetty-Session-Cache is a Jetty session manager that off-loads session management to
+the TCache[1] caching system. This enables Jetty to persist sessions to various caching
 end points; EhCache, Memcached or the Database.
+
+[1] TCache: https://github.com/victori/tcache
 
 Features
 --------
