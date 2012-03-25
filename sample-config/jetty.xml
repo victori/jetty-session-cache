@@ -8,8 +8,8 @@
         <Set name="lowThreads">25</Set>
         <Set name="SpawnOrShrinkAt">2</Set>
       </New>
-    </Set> 
-    
+    </Set>
+
     <Call name="addConnector">
       <Arg>
           <New class="org.mortbay.jetty.nio.SelectChannelConnector">
@@ -23,7 +23,7 @@
           </New>
       </Arg>
     </Call>
-    
+
     <Set name="handler">
       <New id="Handlers" class="org.mortbay.jetty.handler.HandlerCollection">
         <Set name="handlers">
@@ -41,7 +41,7 @@
         </Set>
       </New>
     </Set>
-    
+
     <Call name="addLifeCycle">
       <Arg>
         <New class="org.mortbay.jetty.deployer.ContextDeployer">
@@ -73,7 +73,7 @@
     <Ref id="RequestLog">
       <Set name="requestLog">
         <!--  Our Custom logger to record where the request came from and time to render -->
-        <New id="RequestLogImpl" class="com.base.ClusterLogger">
+        <New id="RequestLogImpl" class="com.base.RequestMapLogger">
           <Set name="filename"><SystemProperty name="jetty.logs" default="./logs"/>/yyyy_mm_dd.request.log</Set>
           <Set name="filenameDateFormat">yyyy_MM_dd</Set>
           <Set name="retainDays">90</Set>
@@ -89,7 +89,7 @@
     <Set name="sendServerVersion">true</Set>
     <Set name="sendDateHeader">true</Set>
     <Set name="gracefulShutdown">1000</Set>
-    
+
 
   <New class="org.mortbay.jetty.webapp.WebAppContext">
         <Arg><Ref id="Contexts"/></Arg>
@@ -105,16 +105,16 @@
           <New class="org.mortbay.jetty.servlet.SessionHandler">
             <Arg>
               <!-- Select one of the Session Stores -->
-              
+
               <!-- Memcached Store -->
               <!--
                 <New class="com.base.MemcachedSessionManager2">
                   <Arg><Array type="java.lang.String"><Item>localhost:11211</Item></Array></Arg>
                   <Arg>workerpool1</Arg>
-                  <Set name="debug">false</Set> 
+                  <Set name="debug">false</Set>
                 </New>
               -->
-              
+
               <!-- EhCache / Memcached Store -->
               <!-- EhCache is the L1 Cache and Memcached is the L2 Cache -->
               <!-- Meaning, all cache look ups are against Ehcache and then fallback to the Memcached Server -->
@@ -123,8 +123,8 @@
                   <Arg><Array type="java.lang.String"><Item>localhost:11211</Item></Array></Arg>
                   <Arg>workerpool1</Arg>
                   <Set name="localttl">1800</Set>
-                  <Set name="debug">false</Set> 
-                </New> 
+                  <Set name="debug">false</Set>
+                </New>
               -->
 
               <!-- Database store -->
@@ -137,7 +137,7 @@
                   <Arg>fab40r2</Arg>
                 </New>
               -->
-              
+
               <!-- Database store with L1 Memcached store for fast lookups. -->
               <!--
                 <New class="com.base.AsyncDBSessionManager">
@@ -149,12 +149,12 @@
                   <Arg><Array type="java.lang.String"><Item>localhost:11311</Item></Array></Arg>
                 </New>
               -->
-              
+
               <!-- File store, see how large your sessions really get. -->
               <!--
                 <New class="com.base.FileSessionManager">
                   <Arg>/tmp/wicket</Arg>
-                </New> 
+                </New>
               -->
           </Arg>
       </New>

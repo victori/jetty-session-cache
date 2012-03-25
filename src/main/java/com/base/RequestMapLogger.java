@@ -30,11 +30,9 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
-import java.util.ArrayList;
-import java.util.Locale;
-import java.util.TimeZone;
+import java.util.*;
 
-public class ClusterLogger extends AbstractLifeCycle implements RequestLog {
+public class RequestMapLogger extends AbstractLifeCycle implements RequestLog {
     private String _filename;
     private boolean _extended;
     private boolean _append;
@@ -58,15 +56,17 @@ public class ClusterLogger extends AbstractLifeCycle implements RequestLog {
     private transient ArrayList _buffers;
     private transient char[] _copy;
 
+    public final static String REQUEST_MAP = "request_map";
 
-    public ClusterLogger() {
+
+    public RequestMapLogger() {
         _extended = true;
         _append = true;
         _retainDays = 31;
         _preferProxiedForAddress = true;
     }
 
-    public ClusterLogger(String filename) {
+    public RequestMapLogger(String filename) {
         _extended = true;
         _append = true;
         _retainDays = 31;
@@ -77,8 +77,9 @@ public class ClusterLogger extends AbstractLifeCycle implements RequestLog {
     public void setFilename(String filename) {
         if (filename != null) {
             filename = filename.trim();
-            if (filename.length() == 0)
+            if (filename.length() == 0) {
                 filename = null;
+            }
         }
         _filename = filename;
     }
@@ -92,8 +93,9 @@ public class ClusterLogger extends AbstractLifeCycle implements RequestLog {
     }
 
     public String getDatedFilename() {
-        if (_fileOut instanceof RolloverFileOutputStream)
+        if (_fileOut instanceof RolloverFileOutputStream) {
             return ((RolloverFileOutputStream) _fileOut).getDatedFilename();
+        }
         return null;
     }
 
@@ -182,15 +184,18 @@ public class ClusterLogger extends AbstractLifeCycle implements RequestLog {
     }
 
     public void log(Request request, Response response) {
-        if (!isStarted())
+        if (!isStarted()) {
             return;
+        }
 
         try {
-            if (_ignorePathMap != null && _ignorePathMap.getMatch(request.getRequestURI()) != null)
+            if (_ignorePathMap != null && _ignorePathMap.getMatch(request.getRequestURI()) != null) {
                 return;
+            }
 
-            if (_fileOut == null)
+            if (_fileOut == null) {
                 return;
+            }
 
             Utf8StringBuffer u8buf;
             StringBuffer buf;
@@ -215,18 +220,20 @@ public class ClusterLogger extends AbstractLifeCycle implements RequestLog {
                     }
                 }
 
-                if (addr == null)
+                if (addr == null) {
                     addr = request.getRemoteAddr();
+                }
 
                 buf.append(addr);
                 buf.append(" - ");
                 String user = request.getRemoteUser();
-                buf.append((user == null) ? " - " : user);
+                buf.append((user == null) ? "-" : user);
                 buf.append(" [");
-                if (_logDateCache != null)
+                if (_logDateCache != null) {
                     buf.append(_logDateCache.format(request.getTimeStamp()));
-                else
+                } else {
                     buf.append(request.getTimeStampBuffer().toString());
+                }
 
                 buf.append("] \"");
                 buf.append(request.getMethod());
@@ -238,8 +245,9 @@ public class ClusterLogger extends AbstractLifeCycle implements RequestLog {
                 buf.append(request.getProtocol());
                 buf.append("\" ");
                 int status = response.getStatus();
-                if (status <= 0)
+                if (status <= 0) {
                     status = 404;
+                }
                 buf.append((char) ('0' + ((status / 100) % 10)));
                 buf.append((char) ('0' + ((status / 10) % 10)));
                 buf.append((char) ('0' + (status % 10)));
@@ -248,22 +256,27 @@ public class ClusterLogger extends AbstractLifeCycle implements RequestLog {
                 long responseLength = response.getContentCount();
                 if (responseLength >= 0) {
                     buf.append(' ');
-                    if (responseLength > 99999)
+                    if (responseLength > 99999) {
                         buf.append(Long.toString(responseLength));
-                    else {
-                        if (responseLength > 9999)
+                    } else {
+                        if (responseLength > 9999) {
                             buf.append((char) ('0' + ((responseLength / 10000) % 10)));
-                        if (responseLength > 999)
+                        }
+                        if (responseLength > 999) {
                             buf.append((char) ('0' + ((responseLength / 1000) % 10)));
-                        if (responseLength > 99)
+                        }
+                        if (responseLength > 99) {
                             buf.append((char) ('0' + ((responseLength / 100) % 10)));
-                        if (responseLength > 9)
+                        }
+                        if (responseLength > 9) {
                             buf.append((char) ('0' + ((responseLength / 10) % 10)));
+                        }
                         buf.append((char) ('0' + (responseLength) % 10));
                     }
                     buf.append(' ');
-                } else
+                } else {
                     buf.append(" - ");
+                }
 
             }
 
@@ -271,8 +284,9 @@ public class ClusterLogger extends AbstractLifeCycle implements RequestLog {
                 synchronized (_writer) {
                     buf.append(StringUtil.__LINE_SEPARATOR);
                     int l = buf.length();
-                    if (l > _copy.length)
+                    if (l > _copy.length) {
                         l = _copy.length;
+                    }
                     buf.getChars(0, l, _copy, 0);
                     _writer.write(_copy, 0, l);
                     _writer.flush();
@@ -282,27 +296,30 @@ public class ClusterLogger extends AbstractLifeCycle implements RequestLog {
             } else {
                 synchronized (_writer) {
                     int l = buf.length();
-                    if (l > _copy.length)
+                    if (l > _copy.length) {
                         l = _copy.length;
+                    }
                     buf.getChars(0, l, _copy, 0);
                     _writer.write(_copy, 0, l);
                     u8buf.reset();
                     _buffers.add(u8buf);
 
                     // TODO do outside synchronized scope
-                    if (_extended)
+                    if (_extended) {
                         logExtended(request, response, _writer);
+                    }
 
                     // TODO do outside synchronized scope
                     if (_logCookies) {
                         Cookie[] cookies = request.getCookies();
-                        if (cookies == null || cookies.length == 0)
+                        if (cookies == null || cookies.length == 0) {
                             _writer.write(" -");
-                        else {
+                        } else {
                             _writer.write(" \"");
                             for (int i = 0; i < cookies.length; i++) {
-                                if (i != 0)
+                                if (i != 0) {
                                     _writer.write(';');
+                                }
                                 _writer.write(cookies[i].getName());
                                 _writer.write('=');
                                 _writer.write(cookies[i].getValue());
@@ -320,8 +337,7 @@ public class ClusterLogger extends AbstractLifeCycle implements RequestLog {
                     _writer.flush();
                 }
             }
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             Log.warn(e);
         }
 
@@ -331,30 +347,48 @@ public class ClusterLogger extends AbstractLifeCycle implements RequestLog {
                                Response response,
                                Writer writer) throws IOException {
         String referer = request.getHeader(HttpHeaders.REFERER);
-        if (referer == null)
+        if (referer == null) {
             writer.write("\"-\" ");
-        else {
+        } else {
             writer.write('"');
             writer.write(referer);
             writer.write("\" ");
         }
 
         String agent = request.getHeader(HttpHeaders.USER_AGENT);
-        if (agent == null)
+        if (agent == null) {
             writer.write("\"-\" ");
-        else {
+        } else {
             writer.write('"');
             writer.write(agent);
             writer.write('"');
         }
 
+        if (request.getAttribute(REQUEST_MAP) == null) {
+            request.setAttribute(REQUEST_MAP, new HashMap());
+        }
+
         String host = request.getConnection().getConnector().getHost();
+        int port = request.getConnection().getConnector().getLocalPort();
         if (host == null) {
             host = request.getLocalAddr();
         }
-        int port = request.getConnection().getConnector().getLocalPort();
-        writer.write(" \"" + host + ":" + port + "\" ");
-        writer.write(TypeUtil.toString(System.currentTimeMillis() - request.getTimeStamp()));
+
+        Map<Object, Object> req = (Map) request.getAttribute(REQUEST_MAP);
+        req.put("req_time", TypeUtil.toString(System.currentTimeMillis() - request.getTimeStamp()));
+        req.put("serv_host", String.format("%s:%s", host, port));
+
+        StringBuilder accessLog = new StringBuilder();
+        for (Map.Entry<Object, Object> e : req.entrySet()) {
+            accessLog.append("!");
+            accessLog.append(e.getKey());
+            accessLog.append("=");
+            accessLog.append(e.getValue());
+        }
+        if (req.size() > 0) {
+            writer.write(" ");
+            writer.write(accessLog.substring(1));
+        }
     }
 
     protected void doStart() throws Exception {
@@ -364,20 +398,24 @@ public class ClusterLogger extends AbstractLifeCycle implements RequestLog {
         }
 
         if (_filename != null) {
-            _fileOut = new RolloverFileOutputStream(_filename, _append, _retainDays, TimeZone.getTimeZone(_logTimeZone), _filenameDateFormat, null);
+            _fileOut = new RolloverFileOutputStream(_filename, _append, _retainDays, TimeZone.getTimeZone(_logTimeZone),
+                    _filenameDateFormat, null);
             _closeOut = true;
             Log.info("Opened " + getDatedFilename());
-        } else
+        } else {
             _fileOut = System.err;
+        }
 
         _out = _fileOut;
 
         if (_ignorePaths != null && _ignorePaths.length > 0) {
             _ignorePathMap = new PathMap();
-            for (int i = 0; i < _ignorePaths.length; i++)
+            for (int i = 0; i < _ignorePaths.length; i++) {
                 _ignorePathMap.put(_ignorePaths[i], _ignorePaths[i]);
-        } else
+            }
+        } else {
             _ignorePathMap = null;
+        }
 
         _writer = new OutputStreamWriter(_out);
         _buffers = new ArrayList();
@@ -390,16 +428,19 @@ public class ClusterLogger extends AbstractLifeCycle implements RequestLog {
     protected void doStop() throws Exception {
         super.doStop();
         try {
-            if (_writer != null) _writer.flush();
+            if (_writer != null) {
+                _writer.flush();
+            }
         } catch (IOException e) {
             Log.ignore(e);
         }
-        if (_out != null && _closeOut)
+        if (_out != null && _closeOut) {
             try {
                 _out.close();
             } catch (IOException e) {
                 Log.ignore(e);
             }
+        }
 
         _out = null;
         _fileOut = null;
