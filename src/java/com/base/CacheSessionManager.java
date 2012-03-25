@@ -45,7 +45,14 @@ public abstract class CacheSessionManager extends AbstractSessionManager {
     private static String ACCESSED_KEY = "_memcache-accessed-key";
     private static String EXPIRE_KEY = "_memcache-expire-key";
     private SessionIdManager _sessionIdManager;
+
+    /**
+     * A local {@link Map} that stores a Session throughout a requests lifetime.
+     * The {@link Map} acts a JVM-local cache to make Session access faster
+     * (since no JDBC/memcache/etc needs to be touched for every access).
+     */
     private ConcurrentHashMap<String, WeakReference<Session>> localStore;
+
     private final static transient Logger logger = Log.getLogger(CacheSessionManager.class.getName());
 
     protected abstract IDistributedCache newClient(final String poolName);
