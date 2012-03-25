@@ -115,15 +115,16 @@ public class CacheSessionIdManager extends AbstractLifeCycle implements SessionI
 
             // pick a new unique ID!
             String id = null;
+            String ipAddress = null;
             while (id == null || id.length() == 0 || idInUse(id)) {
                 // A bit more random.
                 for (int i = 0; i < 2; i++) {
                     long r = _random.nextLong();
                     r ^= created;
 
-                    String ipAddress = null;
                     // X-Real-IP wins if defined.
-                    if (request != null) {
+                    if (request != null && ipAddress == null) {
+                        // Making sure to only calculate ipAddress once, if needed
                         if (request.getRemoteAddr() != null) {
                             ipAddress = request.getRemoteAddr();
                         }
