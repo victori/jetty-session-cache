@@ -16,6 +16,11 @@ Features
 	* JDBC DB Session Store
 	* File Session Store (NFS)
 
+- Custom Logging:
+        * Log which JVM/Server processed the request
+        * Log the render time
+        * Log everything in the request map
+
 Build
 -----
 
