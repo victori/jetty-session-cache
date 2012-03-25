@@ -1,13 +1,14 @@
 package com.base;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 
 /**
  * An {@link ObjectInputStream} that can handle Java primitive types.
  */
 public class ClassLoadingObjectInputStream extends ObjectInputStream {
-    public ClassLoadingObjectInputStream(final java.io.InputStream in) throws IOException {
+    public ClassLoadingObjectInputStream(final InputStream in) throws IOException {
         super(in);
     }
 
