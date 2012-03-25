@@ -168,7 +168,7 @@ public class CacheSessionIdManager extends AbstractLifeCycle implements SessionI
                     }
                     id = (id == null) ? Long.toString(r, 36) : id + Long.toString(r, 36);
                 }
-                
+
                 if(logger.isDebugEnabled()) {
                     logger.debug("Generated ID " + id, null);
                 }

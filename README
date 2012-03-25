@@ -15,7 +15,7 @@ Features
 	* Memcached Session Store
 	* JDBC DB Session Store
 	* File Session Store (NFS)
-  
+
 Build
 -----
 
@@ -24,8 +24,8 @@ Jetty-Session-Cache requires java 5 and ant 1.7
 Building from source is easy:
 
     $ ant jar
-    
-    
+
+
 Configuration
 -----
 
@@ -48,7 +48,7 @@ Configuration
     <Arg><Array type="java.lang.String"><Item>localhost:11211</Item></Array></Arg>
     <Arg>workerpool1</Arg>
     <Set name="localttl">1800</Set>
-  </New> 
+  </New>
 -->
 
 <!-- Database store -->
@@ -78,7 +78,17 @@ Configuration
 <!--
   <New class="com.base.FileSessionManager">
     <Arg>/tmp/wicket</Arg>
-  </New> 
+  </New>
 -->
+
+Thanks
+--------
+
+Thanks to the following contributors.
+
+* Jens Rantil - https://github.com/JensRantil
+
+Author
+-------
 
 Victor Igumnov <victori@fabulously40.com>
