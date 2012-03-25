@@ -53,7 +53,7 @@ public abstract class CacheSessionManager extends AbstractSessionManager {
      */
     private ConcurrentHashMap<String, WeakReference<Session>> localStore;
 
-    private final static transient Logger logger = Log.getLogger(CacheSessionManager.class.getName());
+    private final static Logger logger = Log.getLogger(CacheSessionManager.class.getName());
 
     protected abstract IDistributedCache newClient(final String poolName);
 
@@ -155,7 +155,7 @@ public abstract class CacheSessionManager extends AbstractSessionManager {
             super.complete();
             try {
                 if (logger.isDebugEnabled()) {
-                    logger.debug("Removing local session " + this.getId(), null);
+                    logger.debug(String.format("Removing local session %s", this.getId()), null);
                 }
                 localStore.remove(this.getId());
                 if (_dirty) {
@@ -208,12 +208,13 @@ public abstract class CacheSessionManager extends AbstractSessionManager {
                 oos.writeObject(sMap);
                 oos.flush();
 
+                String key = generateKey(arg0.getId());
                 if (logger.isDebugEnabled()) {
-                    logger.debug("Persisting " + arg0.getId() + " as " + generateKey(arg0.getId()), null);
+                    logger.debug(String.format("Persisting %s as %s", arg0.getId(), key), null);
                 }
-                cache.put(generateKey(arg0.getId()), bs.toByteArray());
+                cache.put(key, bs.toByteArray());
             } catch (Exception e) {
-                logger.warn("Error serializing session: " + e.getMessage(), e);
+                logger.warn(String.format("Error serializing session: %s", e.getMessage()), e);
             } finally {
                 try {
                     if (oos != null) {
@@ -234,7 +235,7 @@ public abstract class CacheSessionManager extends AbstractSessionManager {
 
     protected void willPassivate(final AbstractSessionManager.Session sess) {
         HttpSessionEvent event = new HttpSessionEvent(sess);
-        for (Enumeration e = sess.getAttributeNames(); e.hasMoreElements();) {
+        for (Enumeration e = sess.getAttributeNames(); e.hasMoreElements(); ) {
             Object value = e.nextElement();
             if (value instanceof HttpSessionActivationListener) {
                 HttpSessionActivationListener listener = (HttpSessionActivationListener) value;
@@ -246,7 +247,7 @@ public abstract class CacheSessionManager extends AbstractSessionManager {
 
     protected void didActivate(final AbstractSessionManager.Session sess) {
         HttpSessionEvent event = new HttpSessionEvent(sess);
-        for (Enumeration e = sess.getAttributeNames(); e.hasMoreElements();) {
+        for (Enumeration e = sess.getAttributeNames(); e.hasMoreElements(); ) {
             Object value = e.nextElement();
             if (value instanceof HttpSessionActivationListener) {
                 HttpSessionActivationListener listener = (HttpSessionActivationListener) value;
@@ -277,12 +278,12 @@ public abstract class CacheSessionManager extends AbstractSessionManager {
 
         if (sess != null) {
             if (logger.isDebugEnabled()) {
-                logger.debug("Using locally stored session " + arg0);
+                logger.debug(String.format("Using locally stored session %s", arg0), null);
             }
             return sess;
         } else {
             if (logger.isDebugEnabled()) {
-                logger.debug("local session collected remotely " + arg0);
+                logger.debug(String.format("local session collected remotely %s", arg0), null);
             }
             return loadRemoteSession(arg0);
         }
@@ -338,10 +339,11 @@ public abstract class CacheSessionManager extends AbstractSessionManager {
     public Session loadSession(final String arg0) {
         Session sess = null;
         synchronized (this) {
+            String key = generateKey(arg0);
             if (logger.isDebugEnabled()) {
-                logger.debug("Fetching session for key " + arg0 + " as " + generateKey(arg0), null);
+                logger.debug(String.format("Fetching session for key %s as %s", arg0, key), null);
             }
-            byte[] bytes = (byte[]) cache.get(generateKey(arg0));
+            byte[] bytes = (byte[]) cache.get(key);
             if (bytes == null) {
                 return null;
             }
@@ -356,13 +358,14 @@ public abstract class CacheSessionManager extends AbstractSessionManager {
                     sess = new Session((Map) o, arg0);
                 }
             } catch (Exception e) {
-                logger.warn("Issue loading memcache session.", e);
+                logger.warn("Issue loading Session.", e);
             } finally {
                 try {
                     if (ois != null) {
                         ois.close();
                     }
                 } catch (Exception e) {
+                    logger.warn("Issue closing InputStream.", e);
                 }
             }
         }

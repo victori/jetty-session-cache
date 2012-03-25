@@ -22,7 +22,7 @@
 
 <project default="compile" name="jetty-session-cache" basedir=".">
 
-  <property name="src.dir" value="src/java"/>
+  <property name="src.dir" value="src/main/java"/>
   <property name="build.dir" value="target/"/>
   <property name="build.dir.classes" value="${build.dir}/classes"/>
 
@@ -50,7 +50,7 @@
   <target name="init" description="o Creates all directories for building">
     <mkdir dir="${build.dir.classes}" />
   </target>
-  
+
   <target name="jar" depends="compile" description="o Creates a JAR file for this package">
     <mkdir dir="${build.dir.classes}" />
     <manifestclasspath property="dist.manifest.classpath" jarfile="${build.dir}/jetty-session-cache.jar">
@@ -71,11 +71,11 @@
       <zipfileset src="libs/servlet-api-2.5-6.0.2.jar"/> -->
       <fileset dir="${src.dir}" includes="*.*" />
       <manifest>
-        <attribute name="Class-Path" value="${dist.manifest.classpath}"/>  
+        <attribute name="Class-Path" value="${dist.manifest.classpath}"/>
       </manifest>
     </jar>
   </target>
-  
+
   <target name="contrib" depends="compile" description="o Creates a JAR file for this package">
     <mkdir dir="${build.dir.classes}" />
     <manifestclasspath property="dist.manifest.classpath" jarfile="${build.dir}/jetty-session-cache.jar">
@@ -90,7 +90,7 @@
       </fileset>
       <fileset dir="${src.dir}" includes="*.*" />
       <manifest>
-        <attribute name="Class-Path" value="${dist.manifest.classpath}"/>  
+        <attribute name="Class-Path" value="${dist.manifest.classpath}"/>
       </manifest>
     </jar>
   </target>

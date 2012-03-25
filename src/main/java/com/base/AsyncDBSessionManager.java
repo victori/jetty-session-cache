@@ -16,13 +16,13 @@
 
 package com.base;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import com.base.cache.AsyncDBCache;
 import com.base.cache.ICache;
 import com.base.cache.IDistributedCache;
 import com.base.cache.Memcache2;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class AsyncDBSessionManager extends DBSessionManager {
 	private List<String> servers = new ArrayList<String>();

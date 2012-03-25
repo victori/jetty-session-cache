@@ -23,6 +23,10 @@ Jetty-Session-Cache requires java 5 and ant 1.7
 
 Building from source is easy:
 
+    $ mvn package
+
+Or, if you prefer ant:
+
     $ ant jar
 
 

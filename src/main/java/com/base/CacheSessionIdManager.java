@@ -157,7 +157,7 @@ public class CacheSessionIdManager extends AbstractLifeCycle implements SessionI
                             ipAddress = request.getHeader("X-Real-IP");
                         }
                         if (logger.isDebugEnabled()) {
-                            logger.debug("Hashing for " + ipAddress, null);
+                            logger.debug(String.format("Hashing for %s", ipAddress), null);
                         }
                     }
                     if (ipAddress != null) {
@@ -170,7 +170,7 @@ public class CacheSessionIdManager extends AbstractLifeCycle implements SessionI
                 }
 
                 if(logger.isDebugEnabled()) {
-                    logger.debug("Generated ID " + id, null);
+                    logger.debug(String.format("Generated ID %s", id), null);
                 }
             }
 

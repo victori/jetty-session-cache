@@ -1,0 +1,134 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.base</groupId>
+  <artifactId>jetty-session-cache</artifactId>
+  <version>1.0-SNAPSHOT</version>
+  <packaging>jar</packaging>
+  <description>jetty-session-cache</description>
+
+  <name>jetty-session-cache</name>
+  <url>https://github.com/victori/jetty-session-cache</url>
+
+  <organization>
+    <name>Fabulously40</name>
+    <url>http://fabulously40.com/</url>
+  </organization>
+
+  <licenses>
+    <license>
+      <name>The Apache Software License, Version 2.0</name>
+      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+
+
+  <dependencies>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>4.8.2</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.base</groupId>
+      <artifactId>contrib-cache</artifactId>
+      <version>1.0-SNAPSHOT</version>
+    </dependency>
+    <dependency>
+        <groupId>org.mortbay.jetty</groupId>
+        <artifactId>jetty</artifactId>
+        <version>6.1.26</version>
+        <scope>provided</scope>
+    </dependency>
+    <dependency>
+        <groupId>org.mortbay.jetty</groupId>
+        <artifactId>servlet-api</artifactId>
+        <version>2.5-6.0.1</version>
+         <scope>provided</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <version>2.3.2</version>
+            <configuration>
+              <source>1.5</source>
+              <target>1.5</target>
+            </configuration>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-source-plugin</artifactId>
+            <version>2.1.2</version>
+            <executions>
+              <execution>
+                <id>attach-sources</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>jar-no-fork</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <artifactId>maven-assembly-plugin</artifactId>
+            <version>2.2-beta-5</version>
+            <configuration>
+                <descriptorRefs>
+                    <descriptorRef>jar-with-dependencies</descriptorRef>
+                </descriptorRefs>
+                <archive>
+                  <manifest>
+                    <addClasspath>true</addClasspath>
+                  </manifest>
+                </archive>
+            </configuration>
+            <executions>
+                <execution>
+                    <id>make-assembly</id>
+                    <phase>package</phase>
+                    <goals>
+                        <goal>single</goal>
+                    </goals>
+                </execution>
+            </executions>
+        </plugin>
+        </plugins>
+  </build>
+
+  <repositories>
+      <repository>
+        <id>fab40-server</id>
+        <name>libs-release</name>
+        <url>http://artifactory.fabulously40.com/libs-release</url>
+      </repository>
+      <repository>
+        <id>fab40-server-snapshot</id>
+        <name>libs-snapshot</name>
+        <url>http://artifactory.fabulously40.com/libs-snapshot</url>
+      </repository>
+  </repositories>
+
+  <distributionManagement>
+    <repository>
+      <id>fab40-server</id>
+      <name>libs-release-local</name>
+      <url>http://artifactory.fabulously40.com/libs-release-local</url>
+    </repository>
+    <snapshotRepository>
+      <id>fab40-server</id>
+      <name>libs-snapshot-local</name>
+      <url>http://artifactory.fabulously40.com/libs-snapshot-local</url>
+    </snapshotRepository>
+  </distributionManagement>
+</project>
