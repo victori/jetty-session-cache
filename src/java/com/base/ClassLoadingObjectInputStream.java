@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 
 /**
- * ClassLoadingObjectInputStream
+ * An {@link ObjectInputStream} that can handle Java primitive types.
  */
 public class ClassLoadingObjectInputStream extends ObjectInputStream {
     public ClassLoadingObjectInputStream(final java.io.InputStream in) throws IOException {
