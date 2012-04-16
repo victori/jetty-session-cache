@@ -141,15 +141,6 @@ public abstract class CacheSessionManager extends AbstractSessionManager {
             return getClusterId();
         }
 
-        public long getExpireMs() {
-            Long expiretime = (Long) this.map.get(EXPIRE_KEY);
-            if (expiretime == null) {
-                return 0;
-            } else {
-                return expiretime;
-            }
-        }
-
         @Override
         protected void complete() {
             super.complete();
