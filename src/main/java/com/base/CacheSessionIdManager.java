@@ -37,6 +37,18 @@ public class CacheSessionIdManager extends AbstractLifeCycle implements SessionI
     private final static transient Logger logger = Log.getLogger(CacheSessionIdManager.class.getName());
     private Random _random;
 
+    /**
+     * Object used to synchronize session ID generation.
+     *
+     * We are not synchonizing on 'this', since Jetty's
+     * AbstractSessionManager also synchronizes on this object and we
+     * want to minimize locking clashes.
+     *
+     * Note that this object (obviously) will be specific to this JDK
+     * and that no locking is done between JREs.
+     **/
+    private Object unique_session_id_lock = new Object();
+
     public CacheSessionIdManager(final IDistributedCache client2) {
         this.cache = client2;
         if (_random == null) {
@@ -113,11 +125,13 @@ public class CacheSessionIdManager extends AbstractLifeCycle implements SessionI
      * this problem.
      */
     public String newSessionId(final HttpServletRequest request, final long created) {
-        synchronized (this) {
+        synchronized (unique_session_id_lock) {
             // Since this synchronization is only applicable to the running
             // JVM, multiple session id generators could potentially (in theory)
             // concurrently be generating the same ID. See JavaDoc for this
-            // method for details.
+            // method for details. Also, see JavaDoc for
+	    // unique_session_id_lock as to why we are not simply
+	    // synchronizing on 'this'.
 
             // A requested session ID can only be used if it is in use already.
             String requested_id = request.getRequestedSessionId();

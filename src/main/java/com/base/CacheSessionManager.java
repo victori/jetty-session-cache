@@ -55,6 +55,13 @@ public abstract class CacheSessionManager extends AbstractSessionManager {
 
     private final static Logger logger = Log.getLogger(CacheSessionManager.class.getName());
 
+    /**
+     * An object that locking for this class instance can be done on.
+     *
+     * This is done to encapsulate synchronization.
+     */
+    private Object session_persistence_lock = new Object();
+
     protected abstract IDistributedCache newClient(final String poolName);
 
     protected String getPoolName() {
@@ -186,7 +193,7 @@ public abstract class CacheSessionManager extends AbstractSessionManager {
     }
 
     public void persistSession(final AbstractSessionManager.Session arg0) {
-        synchronized (this) {
+        synchronized (session_persistence_lock) {
             willPassivate(arg0);
 
             ObjectOutputStream oos = null;
@@ -321,7 +328,7 @@ public abstract class CacheSessionManager extends AbstractSessionManager {
 
     @Override
     protected void removeSession(final String arg0) {
-        synchronized (this) {
+        synchronized (session_persistence_lock) {
             localStore.remove(arg0);
             cache.remove(generateKey(arg0));
         }
@@ -329,7 +336,7 @@ public abstract class CacheSessionManager extends AbstractSessionManager {
 
     public Session loadSession(final String arg0) {
         Session sess = null;
-        synchronized (this) {
+        synchronized (session_persistence_lock) {
             String key = generateKey(arg0);
             if (logger.isDebugEnabled()) {
                 logger.debug(String.format("Fetching session for key %s as %s", arg0, key), null);
